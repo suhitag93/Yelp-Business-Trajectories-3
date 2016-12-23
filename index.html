@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Yelp Business Trajectories</title>
+
+    
+
+  
+
+    <!-- Custom CSS -->
+   <link href="../dist/css/sb-admin-2.css" rel="stylesheet">
+
+<script src="http://www.w3schools.com/lib/w3data.js"></script>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<link rel="stylesheet" href="http://www.w3schools.com/lib/w3.css">
+</head>
+<style>
+
+    
+    body {
+  font: 20px sans-serif;
+        padding: 10px;
+}
+    svg{
+        border: 1px;
+        padding-left: 20px;
+    }
+    .cloud{
+        padding-left: 0px;
+        padding-top: 0px;
+    }
+    
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.circles {
+    stroke: #000;
+}
+
+
+    div.tooltip{
+        position: absolute;
+        text-align: center;
+        padding: 2px;
+        background: lightsteelblue;
+        font: 12px sans-serif;
+        pointer-events: none;
+    }    
+    
+     .line {
+      fill: none;
+      stroke: steelblue;
+      stroke-width: 1.0px;
+    }
+    
+    .scatter_container{
+      border: 1px;  
+        width: 900;
+        height: 600;
+        padding-left: 20px;
+        
+    }
+    
+    #cloud{
+        border: 1px;
+        padding-left: 20px;
+    } 
+    h1{
+        padding-left: 20px;
+    }
+</style>
+<body>
+    
+
+
+
+    <div id="wrapper">
+
+        
+         <div class="w3-container w3-pink">
+<h1 style="text-align:center;">
+    <img src="logo.png"  style="width:90px;height:60px;"> Business Trajectory</h1></div>
+         
+   
+          
+            <!-- /.navbar-header -->
+
+            
+                    <!-- /.dropdown-alerts -->
+              
+                <!-- /.dropdown -->
+                
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="#">
+                        <i class="fa fa-user fa-fw"></i> <i class="fa fa-caret-down"></i>
+                    </a>
+                    
+                    <!-- /.dropdown-user -->
+                
+                <!-- /.dropdown -->
+           
+            <!-- /.navbar-top-links -->
+
+            <div class="navbar-default sidebar" role="navigation">
+                <div class="sidebar-nav navbar-collapse">
+                    <ul class="nav" id="side-menu">
+                 
+                         
+			
+  <div id = 'categories'><label>Categories: </label> </div>
+    
+    
+                        
+                        
+                            
+                <!-- /.sidebar-collapse -->
+            
+            
+
+       
+                   <div id="page-wrapper">
+            <div class="row">
+                <div class="col-lg-0">
+                  <h1 class="page-header">Sentiment vs Rating Analysis</h1>  
+                </div>
+                <!-- /.col-lg-0 -->
+            </div>
+                
+                        </div>
+                    </ul>
+                    
+                </div>
+                
+</div>
+
+    <div class = "scatter_container">
+    <div id = 'categories'>
+    
+    </div>
+    
+    <div id="scatter">
+    
+    </div>
+        </div>
+        <hr>
+        <div id="cloud"> 
+            <h1></h1>
+            <svg id="tip_area">
+            <g class='cloud_legend'></g>
+            </svg>
+        </div>
+        </div>
+    
+    
+</body>
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+    
+<script src="https://rawgit.com/jasondavies/d3-cloud/master/build/d3.layout.cloud.js"></script>
+
+<script type = "text/javascript">
+    
+//define margin:
+var margin = {top: 20, right: 500, bottom: 70, left: 70},
+    width  = 1000,
+    height = 600;
+
+//define variables:    
+var data = [];
+var list = d3.select("#categories");
+
+var xValue = function(d) { return d.stars;}, 
+    xScale = d3.scale.linear().range([0,width]).domain([0.8,5.2]),
+    xMap = function(d) {
+            return xScale(xValue(d));
+        }, 
+    xAxis = d3.svg.axis().scale(xScale).orient("bottom");
+    
+   var split_scale = d3.scale.linear().range([0,width]).domain([0.8,5.2]),
+    split_axis = d3.svg.axis().scale(split_scale).orient("bottom").ticks(0);
+// setup y axis
+var yValue = function(d) { return d.sentiment;}, 
+    yScale = d3.scale.linear().range([height, 0]).domain([-1,1]),
+    yMap = function(d) { return yScale(yValue(d));}, 
+    yAxis = d3.svg.axis().scale(yScale).orient("left");
+
+//size scale:   
+var SizeScale = d3.scale.linear()
+            .range([3,18]),
+    sizeValue = function(d){ return d.tips_count;},
+    sizeMap = function(d){return SizeScale(sizeValue(d))};
+    
+//color scale:
+var cValue = function(d){return d.broad_categories;},
+    color = d3.scale.category10().range(["#3FC1C9","#FCE38A","#FC5185","#9862AE","#364F6B"]);
+
+// add the tooltip area to the webpage
+var tooltip = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
+
+var svg = d3.select("#scatter").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    //x-axis
+    var x = svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height/1.25 + ")")
+      .call(xAxis)
+    .append("text")
+      .attr("class", "label")
+      .attr("x", width)
+      .attr("y", -8)
+      .style("text-anchor", "end")
+      .text("Stars");
+    
+    var split_line = svg.append("g")
+      
+      .attr("transform", "translate(0," + height/2 + ")")
+    .attr("class", "axis")
+    .style("color","gray")
+        //.tick(none)
+      .call(split_axis)
+
+  // y-axis
+  var y = svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis)
+    .append("text")
+      .attr("class", "label")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 18)
+      .style("text-anchor", "end")
+      .text("Sentiment");    
+    
+// load data
+    
+d3.csv("LV_btrs.csv", function(error, result) {
+    data = result;
+   //change string (from CSV) into number format
+    data.forEach(function(d) {
+    d.stars = +d.stars;
+    d.sentiment = +d.average_sentiment;
+    d.tips_count = +d.tips_count;
+    d.name = d.name;
+    d.broad_categories = d.broad_categories;
+        d.business_id = d.business_id;
+    
+  });
+    
+    renderList(data);
+    render(data);
+    //renderGraph(data);
+    
+    function render(data){
+        
+        var cat = d3.select('#select').property('value'); 
+        
+        //if the data doesnt need to be filtered:
+        if (cat == 'All'){
+         var  FilteredData = data;
+        //console.log('All');
+        }
+        else{
+        
+            var FilteredData = data.filter(function(d){
+        
+            return d.broad_categories == cat;
+            });
+        //console.log(cat);    
+         console.log(FilteredData[0].name);
+        }
+        
+        renderGraph(FilteredData);
+        
+    }
+    
+    function  renderList(data){
+        var select = d3.select('#categories')
+        .append('select')
+        .attr('id','select')
+        .on('change',onchange)
+        
+    var options = select.selectAll("option")
+            .data(['All'].concat(d3.map(data, function(d){return d.broad_categories;}).keys()))
+            .enter()
+            .append("option")
+            .text(function(d){return d;})
+            .attr("value",function(d){return d;});
+    }
+    
+     function onchange(){
+        
+       var cat =d3.select('#categories').property('value');
+      
+        svg.selectAll("circle").remove();
+        render(data);
+    }
+    
+    
+    //scatterplot stage 
+    
+    
+    function renderGraph(data){
+   svg.selectAll("circle").remove();
+  // draw circles
+var selection = svg.selectAll("circle")
+      .data(data)
+    .enter().append("circle")
+      .attr("class", "circles")
+      .attr("r", function(d){return Math.sqrt(sizeMap(d)/Math.PI)})
+      .attr("cx", xMap)
+      .attr("cy", yMap)
+      .style("fill",function(d){ return color(cValue(d));})
+        .attr("opacity","0.6")
+        .on("mouseover",function(d)
+              {tooltip.transition()
+                .duration(100).style("opacity",.9);
+                circle = d3.select(this);
+               circle.transition().duration(400).style("opacity",1).style("stroke-width","3px")
+               .ease("elastic");
+        tooltip.html(d["name"] +"  ("+ "$".repeat(d["Price_Range"])+")").style("left",(d3.event.pageX +5) +"px").style("top",(d3.event.pageY -28)+"px");                
+                                     })
+        .on("mouseout",function(d){
+            tooltip.transition()
+            .duration(500)
+            .style("opacity", 0);
+            circle = d3.select(this);
+               circle.transition().duration(400).style("opacity",0.7).style("stroke-width","1px")
+               .ease("elastic");
+        })
+       // .on("click",function(d){tip_load(d.business_id)})
+        .on("click",function (d){get_cloud(d.business_id, d.name)})
+        ;
+        
+
+    //selection.exit().remove(); 
+    
+    var legend = svg.selectAll(".cloud_legend")
+        .data(color.domain())
+        .enter().append("g")            
+        .attr("class","legend")
+        .attr("transform",function(d,i){ return "translate(0," + i * 20 + ")";})
+    
+    //color squares:        
+    legend.append("rect")
+    .attr("x", width -28)
+    .attr("width",18)
+    .attr("height",18)
+    .style("fill",color);
+    
+    //legend text:
+    legend.append("text")
+    .attr("x",width)
+    .attr("y", 8)
+    .attr("dy",".35em")
+    .style("text-anchor","start")
+    .text(function(d){ return d;})
+        
+   } 
+  
+
+
+
+});
+
+//word cloud area:
+
+function get_cloud(biz_id, biz)    {
+    //screating scale for fontsize
+    
+    
+    d3.select("#tip_area").selectAll("text").remove();
+    d3.select("#cloud").selectAll("h1").text(biz);
+    var dataWords = [];
+        d3.csv("word_sentiment_freq.csv", function(error,result) {
+            dataWords = result;
+            getData(dataWords);
+       
+            function getData(dataWords) {
+            var business = biz_id;
+            //console.log(business);
+                
+                
+            var fontScale = d3.scale.linear()
+            .range([22,60]);
+            
+            var cloud_colorScale = d3.scale.linear().domain([-1,0, 1]).range(['#FC5185','#364F6B'])
+                
+            d3.csv("business_words.csv", function(error,result) {
+                dataBiz = result;
+                
+                var BusinessWords = dataBiz.filter(function(d){
+                    return d.business_id == business;
+                });
+                
+                //clean up text from bix record
+                BusinessWords = BusinessWords[0].text;
+                BusinessWords = BusinessWords.split("[");
+                BusinessWords = BusinessWords[1].split("]");
+                BusinessWords = BusinessWords[0].split(",");     
+                //console.log(BusinessWords);
+                //number of unique words in the tips
+                var numWords = BusinessWords.length;
+                if (numWords > 100) {numWords = 100}
+                var text = [];
+                var wordData =[];
+                for (var i = 0; i < numWords; i++) {
+                    word = BusinessWords[i]
+                    word = word.replace(/['"]+/g, '');  //cleaning
+                    word = word.trimLeft();
+                    //console.log(word);
+                    wordData = dataWords.filter(function(d){    
+                       
+                           return d.Word == word;
+                    });
+                    
+                    //var font_sz = wordData[0].Freq;
+                    if (wordData[0] != undefined){
+                        text.push({"text": wordData[0].Word, "freq": 1/(wordData[0].Freq), "sent": wordData[0].Sentiment });
+                        console.log(wordData[0]);
+                    }
+                    
+                    }
+            console.log(text);        
+            
+            d3.layout.cloud().size([600,600])  
+            .words(text)
+            .rotate(0).fontSize(function(d){return fontScale(d.freq)}).on("end",draw).start();
+                
+                
+                
+            function draw(words){
+                
+                d3.select("#tip_area")
+                .attr("width",700)
+                .attr("height",700)
+                .attr("class","wordcloud")
+                .append("g")
+                .attr("transform","translate(250,250)")
+                .selectAll("Word")
+                .data(words)
+                .enter().append("text")
+                .style("opacity",0.6)
+                .style("font-size", function(d){return fontScale(d.freq)})
+                .style("fill",function(d,i){ return cloud_colorScale(d.sent)})
+                .attr("transform", function(d){
+                    return "translate(" +[d.x, d.y]+ ")rotate ("+ d.rotate + ")";
+                })
+                .text(function(d){return d.text;});
+            }
+            
+        });
+      }
+  });        
+} 
+    
+</script>
+</html>
